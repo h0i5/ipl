@@ -32,6 +32,7 @@ type Items struct {
 	matchSchedule     cmd.MatchScheduleResponse
 	pointsTable       cmd.PointsTableResponse
 	historicalWinners cmd.HistoricalWinnersResponse
+	squads            map[string]cmd.SquadResponse
 }
 
 type Model struct {
@@ -131,5 +132,6 @@ func NewModel(renderer *lipgloss.Renderer) Model {
 		matchTable:       t,
 		matchTableStyles: ts,
 		lastUpdated:      time.Now(),
+		items:            Items{squads: make(map[string]cmd.SquadResponse)},
 	}
 }

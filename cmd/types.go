@@ -89,6 +89,22 @@ type LiveMatchResponse struct {
 	DateChecked string               `json:"date_checked"`
 }
 
+type SquadPlayer struct {
+	Name         string `json:"Name"`
+	Nationality  string `json:"Nationality"`
+	Role         string `json:"Role"`
+	Style        string `json:"Style"`
+	Wicketkeeper bool   `json:"Wicketkeeper"`
+	Overseas     bool   `json:"Overseas"`
+}
+
+type SquadResponse struct {
+	StatusCode int                    `json:"status_code"`
+	Team       string                 `json:"team"`
+	Season     string                 `json:"season"`
+	Squad      map[string]SquadPlayer `json:"squad"`
+}
+
 //type LiveMatchResponse struct {
 //	StatusCode  int                    `json:"status_code"`
 //	Season      string                 `json:"season"`

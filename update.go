@@ -82,6 +82,39 @@ func (m Model) allLoaded() bool {
 		!m.loadingMap[LiveView]
 }
 
+type squadMsg struct {
+	slug string
+	data cmd.SquadResponse
+}
+
+func fetchSquad(slug string) tea.Cmd {
+	return func() tea.Msg {
+		data, err := cmd.GetSquad(slug)
+		if err != nil {
+			return nil
+		}
+		return squadMsg{slug: slug, data: data}
+	}
+}
+
+func squadCmdsForLive(live cmd.LiveMatchResponse) tea.Cmd {
+	if live.LiveCount == 0 || len(live.LiveScore) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	var cmds []tea.Cmd
+	for _, match := range live.LiveScore {
+		for _, name := range []string{match.Team1, match.Team2} {
+			slug := cmd.TeamToSlug(name)
+			if slug != "" && !seen[slug] {
+				seen[slug] = true
+				cmds = append(cmds, fetchSquad(slug))
+			}
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
 type refreshtickMsg time.Time
 
 func refreshTickCmd() tea.Cmd {
@@ -132,6 +165,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectedTab = LiveView
 			m.matchTable.Focus()
 		}
+		return m, squadCmdsForLive(msg)
 
 	case cmd.PointsTableResponse:
 		m.loadingMap[PointsTableView] = false
@@ -153,11 +187,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var err error
 		m.items.liveMatch, err = cmd.GetLiveMatchScores()
 		if err != nil {
-			// dont update anything
-			return m, nil
+			return m, refreshTickCmd()
 		}
 		m.lastUpdated = time.Now()
-		return m, refreshTickCmd()
+		return m, tea.Batch(refreshTickCmd(), squadCmdsForLive(m.items.liveMatch))
+
+	case squadMsg:
+		m.items.squads[msg.slug] = msg.data
 
 	case tea.KeyMsg:
 		key := msg.String()
@@ -189,8 +225,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case TabView:
 			return m.handleTabCursor(key)
-		default:
-			panic("unhandled default case")
+		case InitialLoadView:
+			// ignore keys during initial load
 		}
 
 	// set the width and height to align content

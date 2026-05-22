@@ -276,7 +276,7 @@ func (m Model) renderLive(width int) string {
 		loc = time.UTC
 	}
 
-	updatedLine := s.faint.Render("last updated " + m.lastUpdated.In(loc).Format("15:04:05"))
+	updatedLine := s.faint.Render("last updated " + m.lastUpdated.In(loc).Format("15:04:05") + " • updates every 10s")
 
 	data := m.items.liveMatch
 	if data.LiveCount == 0 || len(data.LiveScore) == 0 {
@@ -336,9 +336,107 @@ func (m Model) renderLive(width int) string {
 
 		sb.WriteString(s.matchCard.Width(cardW).Render(strings.Join(lines, "\n")))
 		sb.WriteString("\n")
+		sb.WriteString(m.renderSquads(match.Team1, match.Team2, width))
+		sb.WriteString("\n")
 	}
 
 	return sb.String()
+}
+
+func (m Model) renderSquads(team1, team2 string, width int) string {
+	s := m.styles
+	slug1 := cmd.TeamToSlug(team1)
+	slug2 := cmd.TeamToSlug(team2)
+	sq1, ok1 := m.items.squads[slug1]
+	sq2, ok2 := m.items.squads[slug2]
+
+	if !ok1 && !ok2 {
+		return s.faint.Render("  loading squads...")
+	}
+
+	colW := (width - 4) / 2
+	if colW < 20 {
+		colW = 20
+	}
+
+	left := buildSquadColumn(s, team1, sq1, ok1, colW)
+	right := buildSquadColumn(s, team2, sq2, ok2, colW)
+
+	return lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().Width(colW).Render(left),
+		"    ",
+		lipgloss.NewStyle().Width(colW).Render(right),
+	)
+}
+
+func buildSquadColumn(s Styles, teamName string, sq cmd.SquadResponse, loaded bool, width int) string {
+	divider := s.faint.Render(strings.Repeat("─", width-2))
+	header := s.gold.Bold(true).Render(teamName)
+
+	if !loaded {
+		return strings.Join([]string{header, divider, s.faint.Render("  loading...")}, "\n")
+	}
+
+	type entry struct {
+		key string
+		p   cmd.SquadPlayer
+	}
+	seen := map[string]bool{}
+	players := make([]entry, 0, len(sq.Squad))
+	for k, p := range sq.Squad {
+		if seen[p.Name] {
+			continue
+		}
+		seen[p.Name] = true
+		players = append(players, entry{k, p})
+	}
+	sort.Slice(players, func(i, j int) bool {
+		ri, rj := squadPlayerRank(players[i].p), squadPlayerRank(players[j].p)
+		if ri != rj {
+			return ri < rj
+		}
+		return players[i].p.Name < players[j].p.Name
+	})
+
+	lines := []string{header, divider}
+	for _, e := range players {
+		p := e.p
+		name := p.Name
+		if len([]rune(name)) > 22 {
+			name = string([]rune(name)[:21]) + "…"
+		}
+		nameW := lipgloss.NewStyle().Width(24).Render(s.muted.Render(name))
+		tag := squadPlayerTag(p)
+		lines = append(lines, "  "+nameW+s.faint.Render(tag))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func squadPlayerRank(p cmd.SquadPlayer) int {
+	if p.Wicketkeeper {
+		return 0
+	}
+	if strings.Contains(p.Style, "Bat") {
+		return 1
+	}
+	return 2
+}
+
+func squadPlayerTag(p cmd.SquadPlayer) string {
+	var tag string
+	switch {
+	case p.Wicketkeeper:
+		tag = "WK  "
+	case strings.Contains(p.Style, "Bat"):
+		tag = "BAT "
+	default:
+		tag = "BOWL"
+	}
+	if p.Overseas {
+		tag += " OS"
+	}
+	return tag
 }
 
 // ── Standings ─────────────────────────────────────────────────────────────────
