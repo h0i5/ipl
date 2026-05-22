@@ -276,7 +276,7 @@ func (m Model) renderLive(width int) string {
 		loc = time.UTC
 	}
 
-	updatedLine := s.faint.Render("last updated " + m.lastUpdated.In(loc).Format("15:04:05") + " • updates every 10s")
+	updatedLine := s.faint.Render("last updated " + m.lastUpdated.In(loc).Format("15:04:05") + " • auto updates every 10s")
 
 	data := m.items.liveMatch
 	if data.LiveCount == 0 || len(data.LiveScore) == 0 {
