@@ -271,7 +271,10 @@ func (m Model) renderLive(width int) string {
 	sb.WriteString(heading.Render("live matches"))
 	sb.WriteString("\n\n")
 
-	loc, _ := time.LoadLocation("Asia/Kolkata")
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		loc = time.UTC
+	}
 
 	data := m.items.liveMatch
 	if data.LiveCount == 0 || len(data.Matches) == 0 {
