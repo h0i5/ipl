@@ -1,6 +1,6 @@
 ```ssh ipl.harshiyer.in``` and you no longer need to leave your terminal to watch ipl :)
 > Live Match Status
-<img width="1600" height="1251" alt="image (6)" src="https://github.com/user-attachments/assets/6612b648-dc7e-49a9-815b-f8e211fedbb5" />
+<img width="1704" height="1311" alt="image" src="https://github.com/user-attachments/assets/8df7819b-afb1-4b03-b98b-a03d9c145751" />
 <hr>
 
 > All Matches
