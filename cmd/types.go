@@ -65,26 +65,50 @@ type YearWinner struct {
 	RunnerUp string `json:"Runner Up"`
 	Venue    string `json:"Venue"`
 }
-type LiveMatchResponse struct {
-	StatusCode  int                    `json:"status_code"`
-	Season      string                 `json:"season"`
-	Source      string                 `json:"source"`
-	SeriesID    string                 `json:"series_id,omitempty"`
-	Status      string                 `json:"status"`
-	LiveCount   int                    `json:"live_count"`
-	LiveScore   map[string]interface{} `json:"live_score,omitempty"`
-	Matches     map[string]LiveMatch   `json:"matches"`
-	DateChecked string                 `json:"date_checked,omitempty"`
-}
 
 type LiveMatch struct {
-	Status     string `json:"status"`
-	Title      string `json:"title"`
-	Info       string `json:"info,omitempty"`
-	Team1      string `json:"team_1"`
-	Score1     string `json:"score_1"`
-	Team2      string `json:"team_2"`
-	Score2     string `json:"score_2"`
-	MatchURL   string `json:"match_url,omitempty"`
-	StatusText string `json:"status_text"`
+	Status    string `json:"status"`
+	Team1     string `json:"team_1"`
+	Score1    string `json:"score_1"`
+	Overs1    string `json:"overs_1"`
+	Team2     string `json:"team_2"`
+	Score2    string `json:"score_2"`
+	Overs2    string `json:"overs_2"`
+	MatchURL  string `json:"match_url"`
+	StartTime string `json:"start_time,omitempty"`
 }
+
+type LiveMatchResponse struct {
+	StatusCode  int                  `json:"status_code"`
+	Season      string               `json:"season"`
+	Source      string               `json:"source"`
+	Status      string               `json:"status"`
+	LiveCount   int                  `json:"live_count"`
+	LiveScore   map[string]LiveMatch `json:"live_score"`
+	Matches     map[string]LiveMatch `json:"matches"`
+	DateChecked string               `json:"date_checked"`
+}
+
+//type LiveMatchResponse struct {
+//	StatusCode  int                    `json:"status_code"`
+//	Season      string                 `json:"season"`
+//	Source      string                 `json:"source"`
+//	SeriesID    string                 `json:"series_id,omitempty"`
+//	Status      string                 `json:"status"`
+//	LiveCount   int                    `json:"live_count"`
+//	LiveScore   map[string]interface{} `json:"live_score,omitempty"`
+//	Matches     map[string]LiveMatch   `json:"matches"`
+//	DateChecked string                 `json:"date_checked,omitempty"`
+//}
+//
+//type LiveMatch struct {
+//	Status     string `json:"status"`
+//	Title      string `json:"title"`
+//	Info       string `json:"info,omitempty"`
+//	Team1      string `json:"team_1"`
+//	Score1     string `json:"score_1"`
+//	Team2      string `json:"team_2"`
+//	Score2     string `json:"score_2"`
+//	MatchURL   string `json:"match_url,omitempty"`
+//	StatusText string `json:"status_text"`
+//}

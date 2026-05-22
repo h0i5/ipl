@@ -276,19 +276,19 @@ func (m Model) renderLive(width int) string {
 		loc = time.UTC
 	}
 
+	updatedLine := s.faint.Render("last updated " + m.lastUpdated.In(loc).Format("15:04:05"))
+
 	data := m.items.liveMatch
-	if data.LiveCount == 0 || len(data.Matches) == 0 {
-		sb.WriteString(s.muted.Render("No matches live right now •"))
-		sb.WriteString(s.faint.Render(
-			" last updated " + m.lastUpdated.In(loc).Format("15:04:05"),
-		))
+	if data.LiveCount == 0 || len(data.LiveScore) == 0 {
+		sb.WriteString(s.muted.Render("No matches live right now"))
+		sb.WriteString(s.faint.Render("  •  " + m.lastUpdated.In(loc).Format("15:04:05")))
 		sb.WriteString("\n")
 		sb.WriteString(s.faint.Render("Press [m] for historical view."))
 		return sb.String()
 	}
 
-	keys := make([]string, 0, len(data.Matches))
-	for k := range data.Matches {
+	keys := make([]string, 0, len(data.LiveScore))
+	for k := range data.LiveScore {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -298,28 +298,40 @@ func (m Model) renderLive(width int) string {
 		cardW = 60
 	}
 
+	sb.WriteString(updatedLine)
+	sb.WriteString("\n\n")
+
 	for _, k := range keys {
-		match := data.Matches[k]
+		match := data.LiveScore[k]
 
-		badge := s.liveDot.Render("● LIVE")
-		title := s.gold.Bold(true).Render(match.Title)
+		overs1 := ""
+		if match.Overs1 != "" {
+			overs1 = "  " + s.faint.Render("("+match.Overs1+")")
+		}
+		overs2 := ""
+		if match.Overs2 != "" {
+			overs2 = "  " + s.faint.Render("("+match.Overs2+")")
+		}
 
-		sb.WriteString(s.faint.Render(
-			" last updated " + m.lastUpdated.In(loc).Format("15:04:05"),
-		))
+		row1 := lipgloss.JoinHorizontal(lipgloss.Left,
+			s.teamName.Render(match.Team1), "  ", s.score.Render(match.Score1), overs1,
+		)
+		row2 := lipgloss.JoinHorizontal(lipgloss.Left,
+			s.teamName.Render(match.Team2), "  ", s.score.Render(match.Score2), overs2,
+		)
 
-		team1 := s.teamName.Render(match.Team1)
-		score1 := s.score.Render(match.Score1)
-		team2 := s.teamName.Render(match.Team2)
-		score2 := s.score.Render(match.Score2)
+		lines := []string{s.liveDot.Render("● LIVE"), "", row1, row2}
 
-		row1 := lipgloss.JoinHorizontal(lipgloss.Left, team1, "  ", score1)
-		row2 := lipgloss.JoinHorizontal(lipgloss.Left, team2, "  ", score2)
-		status := s.venue.Render(match.StatusText)
+		if match.Status != "" {
+			lines = append(lines, "", s.venue.Render(match.Status))
+		}
 
-		lines := []string{badge, title, "", row1, row2, "", status}
-		if match.Info != "" {
-			lines = append(lines, s.muted.Render(match.Info))
+		if match.StartTime != "" {
+			displayTime := match.StartTime
+			if t, err := time.Parse(time.RFC3339, match.StartTime); err == nil {
+				displayTime = t.In(loc).Format("15:04 IST")
+			}
+			lines = append(lines, s.faint.Render("start  •  "+displayTime))
 		}
 
 		sb.WriteString(s.matchCard.Width(cardW).Render(strings.Join(lines, "\n")))

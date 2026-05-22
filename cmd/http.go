@@ -35,5 +35,5 @@ func GetPointsTable() (PointsTableResponse, error) {
 }
 
 func GetLiveMatchScores() (LiveMatchResponse, error) {
-	return GetApiData[LiveMatchResponse]("/ipl-2026-live-score-s3")
+	return GetApiData[LiveMatchResponse]("/ipl-2026-live-score-s2")
 }
