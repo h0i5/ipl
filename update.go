@@ -118,9 +118,8 @@ func squadCmdsForLive(live cmd.LiveMatchResponse) tea.Cmd {
 type refreshtickMsg time.Time
 
 func refreshTickCmd() tea.Cmd {
-
-	// refresh scores every 10 seconds
-	return tea.Tick(10*time.Second, func(t time.Time) tea.Msg {
+	// refresh scores every 5 seconds
+	return tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
 		return refreshtickMsg(t)
 	})
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -276,7 +277,7 @@ func (m Model) renderLive(width int) string {
 		loc = time.UTC
 	}
 
-	updatedLine := s.faint.Render("last updated " + m.lastUpdated.In(loc).Format("15:04:05") + " • auto updates every 10s")
+	updatedLine := s.faint.Render("last updated " + m.lastUpdated.In(loc).Format("15:04:05") + " • auto updates every 5s")
 
 	data := m.items.liveMatch
 	if data.LiveCount == 0 || len(data.LiveScore) == 0 {
@@ -293,42 +294,11 @@ func (m Model) renderLive(width int) string {
 	}
 	sort.Strings(keys)
 
-	cardW := width - 6
-	if cardW > 60 {
-		cardW = 60
-	}
-
 	sb.WriteString(updatedLine)
 	sb.WriteString("\n\n")
 
 	for _, k := range keys {
 		match := data.LiveScore[k]
-
-		// resolve full names for display (squad lookup still uses abbrev)
-		//name1, name2 := match.Team1, match.Team2
-		//if d := match.LiveDetails; d != nil {
-		//	if d.Team1Full != "" {
-		//		name1 = d.Team1Full
-		//	}
-		//	if d.Team2Full != "" {
-		//		name2 = d.Team2Full
-		//	}
-		//}
-
-		overs1, overs2 := "", ""
-		if match.Overs1 != "" && match.Overs1 != "N.A" {
-			overs1 = "  " + s.faint.Render("("+match.Overs1+")")
-		}
-		if match.Overs2 != "" && match.Overs2 != "N.A" {
-			overs2 = "  " + s.faint.Render("("+match.Overs2+")")
-		}
-
-		row1 := lipgloss.JoinHorizontal(lipgloss.Left,
-			s.teamName.Render(match.Team1), "  ", s.score.Render(match.Score1), overs1,
-		)
-		row2 := lipgloss.JoinHorizontal(lipgloss.Left,
-			s.teamName.Render(match.Team2), "  ", s.score.Render(match.Score2), overs2,
-		)
 
 		badge := s.liveDot.Render("● LIVE")
 		if d := match.LiveDetails; d != nil && d.MatchNumber != "" {
@@ -337,33 +307,120 @@ func (m Model) renderLive(width int) string {
 				s.faint.Render(fmt.Sprintf("  •  Match %s  •  Inning %d", d.MatchNumber, d.Inning)),
 			)
 		}
+		sb.WriteString(badge + "\n\n")
 
-		lines := []string{badge, "", row1, row2}
+		if width >= 90 {
+			colW := width / 3
 
-		if d := match.LiveDetails; d != nil {
-			if d.Venue != "" {
-				lines = append(lines, "", s.venue.Render("📍 "+d.Venue))
+			// determine which innings is live
+			liveScore, liveOvers := match.Score1, match.Overs1
+			var targetRuns int
+			hasTarget := false
+			if d := match.LiveDetails; d != nil && d.Inning == 2 {
+				liveScore, liveOvers = match.Score2, match.Overs2
+				if parts := strings.SplitN(match.Score1, "/", 2); len(parts) > 0 {
+					if r, err := strconv.Atoi(strings.TrimSpace(parts[0])); err == nil {
+						targetRuns = r + 1
+						hasTarget = true
+					}
+				}
+			} else if match.Score1 == "" || match.Score1 == "Yet to bat" {
+				liveScore, liveOvers = match.Score2, match.Overs2
 			}
-			if d.Toss != "" {
-				lines = append(lines, s.faint.Render("🪙 "+d.Toss))
+
+			// build center block
+			var midLines []string
+			if art := scoreArt(liveScore); art != "" {
+				midLines = append(midLines, art)
+			} else {
+				midLines = append(midLines, s.score.Render(liveScore))
 			}
-		} else if match.StartTime != "" {
-			displayTime := match.StartTime
-			if t, err := time.Parse(time.RFC3339, match.StartTime); err == nil {
-				displayTime = t.In(loc).Format("15:04 IST")
+			if liveOvers != "" && liveOvers != "N.A" {
+				midLines = append(midLines, s.faint.Render("("+liveOvers+" ov)"))
 			}
-			lines = append(lines, "", s.faint.Render("start  •  "+displayTime))
+			if hasTarget {
+				midLines = append(midLines, "")
+				midLines = append(midLines, s.muted.Render(fmt.Sprintf("Target: %d", targetRuns)))
+			}
+			if d := match.LiveDetails; d != nil {
+				var rates []string
+				if d.Rates.CRR != "" {
+					rates = append(rates, "CRR "+d.Rates.CRR)
+				}
+				if d.Rates.RRR != "" && d.Rates.RRR != "--" {
+					rates = append(rates, "RRR "+d.Rates.RRR)
+				}
+				if len(rates) > 0 {
+					midLines = append(midLines, s.faint.Render(strings.Join(rates, "  •  ")))
+				}
+			}
+
+			midW := width - 2*colW
+			leftCol := lipgloss.NewStyle().Width(colW).Render(teamArt(match.Team1))
+			midCol := lipgloss.NewStyle().Width(midW).Align(lipgloss.Center).Render(strings.Join(midLines, "\n"))
+			rightCol := lipgloss.NewStyle().Width(colW).Align(lipgloss.Right).Render(teamArt(match.Team2))
+
+			sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftCol, midCol, rightCol))
+			sb.WriteString("\n")
+
+			if d := match.LiveDetails; d != nil {
+				if d.Venue != "" {
+					sb.WriteString(s.venue.Render("📍 "+d.Venue) + "\n")
+				}
+				if d.Toss != "" {
+					sb.WriteString(s.faint.Render("🪙 "+d.Toss) + "\n")
+				}
+			} else if match.StartTime != "" {
+				displayTime := match.StartTime
+				if t, err := time.Parse(time.RFC3339, match.StartTime); err == nil {
+					displayTime = t.In(loc).Format("15:04 IST")
+				}
+				sb.WriteString(s.faint.Render("start  •  "+displayTime) + "\n")
+			}
+		} else {
+			// narrow fallback
+			overs1, overs2 := "", ""
+			if match.Overs1 != "" && match.Overs1 != "N.A" {
+				overs1 = "  " + s.faint.Render("("+match.Overs1+")")
+			}
+			if match.Overs2 != "" && match.Overs2 != "N.A" {
+				overs2 = "  " + s.faint.Render("("+match.Overs2+")")
+			}
+			row1 := lipgloss.JoinHorizontal(lipgloss.Left,
+				s.teamName.Render(match.Team1), "  ", s.score.Render(match.Score1), overs1,
+			)
+			row2 := lipgloss.JoinHorizontal(lipgloss.Left,
+				s.teamName.Render(match.Team2), "  ", s.score.Render(match.Score2), overs2,
+			)
+			var lines []string
+			lines = append(lines, "", row1, row2)
+			if d := match.LiveDetails; d != nil {
+				if d.Venue != "" {
+					lines = append(lines, "", s.venue.Render("📍 "+d.Venue))
+				}
+				if d.Toss != "" {
+					lines = append(lines, s.faint.Render("🪙 "+d.Toss))
+				}
+			} else if match.StartTime != "" {
+				displayTime := match.StartTime
+				if t, err := time.Parse(time.RFC3339, match.StartTime); err == nil {
+					displayTime = t.In(loc).Format("15:04 IST")
+				}
+				lines = append(lines, "", s.faint.Render("start  •  "+displayTime))
+			}
+			narrowW := width - 6
+			if narrowW > 60 {
+				narrowW = 60
+			}
+			sb.WriteString(s.matchCard.Width(narrowW).Render(strings.Join(lines, "\n")))
 		}
 
-		sb.WriteString(s.matchCard.Width(cardW).Render(strings.Join(lines, "\n")))
 		sb.WriteString("\n\n")
 
 		if match.LiveDetails != nil {
 			sb.WriteString(m.renderLiveDetails(match.LiveDetails, width))
 			sb.WriteString("\n\n")
 		}
-
-		//sb.WriteString(m.renderSquads(match.Team1, match.Team2, name1, name2, width))
 		sb.WriteString("\n")
 	}
 
