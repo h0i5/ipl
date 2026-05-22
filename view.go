@@ -335,7 +335,7 @@ func (m Model) renderLive(width int) string {
 		}
 
 		sb.WriteString(s.matchCard.Width(cardW).Render(strings.Join(lines, "\n")))
-		sb.WriteString("\n")
+		sb.WriteString("\n\n")
 		sb.WriteString(m.renderSquads(match.Team1, match.Team2, width))
 		sb.WriteString("\n")
 	}
