@@ -304,12 +304,22 @@ func (m Model) renderLive(width int) string {
 	for _, k := range keys {
 		match := data.LiveScore[k]
 
-		overs1 := ""
-		if match.Overs1 != "" {
+		// resolve full names for display (squad lookup still uses abbrev)
+		//name1, name2 := match.Team1, match.Team2
+		//if d := match.LiveDetails; d != nil {
+		//	if d.Team1Full != "" {
+		//		name1 = d.Team1Full
+		//	}
+		//	if d.Team2Full != "" {
+		//		name2 = d.Team2Full
+		//	}
+		//}
+
+		overs1, overs2 := "", ""
+		if match.Overs1 != "" && match.Overs1 != "N.A" {
 			overs1 = "  " + s.faint.Render("("+match.Overs1+")")
 		}
-		overs2 := ""
-		if match.Overs2 != "" {
+		if match.Overs2 != "" && match.Overs2 != "N.A" {
 			overs2 = "  " + s.faint.Render("("+match.Overs2+")")
 		}
 
@@ -320,35 +330,139 @@ func (m Model) renderLive(width int) string {
 			s.teamName.Render(match.Team2), "  ", s.score.Render(match.Score2), overs2,
 		)
 
-		lines := []string{s.liveDot.Render("● LIVE"), "", row1, row2}
-
-		if match.Status != "" {
-			lines = append(lines, "", s.venue.Render(match.Status))
+		badge := s.liveDot.Render("● LIVE")
+		if d := match.LiveDetails; d != nil && d.MatchNumber != "" {
+			badge = lipgloss.JoinHorizontal(lipgloss.Left,
+				badge,
+				s.faint.Render(fmt.Sprintf("  •  Match %s  •  Inning %d", d.MatchNumber, d.Inning)),
+			)
 		}
 
-		if match.StartTime != "" {
+		lines := []string{badge, "", row1, row2}
+
+		if d := match.LiveDetails; d != nil {
+			if d.Venue != "" {
+				lines = append(lines, "", s.venue.Render("📍 "+d.Venue))
+			}
+			if d.Toss != "" {
+				lines = append(lines, s.faint.Render("🪙 "+d.Toss))
+			}
+		} else if match.StartTime != "" {
 			displayTime := match.StartTime
 			if t, err := time.Parse(time.RFC3339, match.StartTime); err == nil {
 				displayTime = t.In(loc).Format("15:04 IST")
 			}
-			lines = append(lines, s.faint.Render("start  •  "+displayTime))
+			lines = append(lines, "", s.faint.Render("start  •  "+displayTime))
 		}
 
 		sb.WriteString(s.matchCard.Width(cardW).Render(strings.Join(lines, "\n")))
 		sb.WriteString("\n\n")
-		sb.WriteString(m.renderSquads(match.Team1, match.Team2, width))
+
+		if match.LiveDetails != nil {
+			sb.WriteString(m.renderLiveDetails(match.LiveDetails, width))
+			sb.WriteString("\n\n")
+		}
+
+		//sb.WriteString(m.renderSquads(match.Team1, match.Team2, name1, name2, width))
 		sb.WriteString("\n")
 	}
 
 	return sb.String()
 }
 
-func (m Model) renderSquads(team1, team2 string, width int) string {
+func (m Model) renderLiveDetails(d *cmd.LiveDetails, width int) string {
 	s := m.styles
-	slug1 := cmd.TeamToSlug(team1)
-	slug2 := cmd.TeamToSlug(team2)
-	sq1, ok1 := m.items.squads[slug1]
-	sq2, ok2 := m.items.squads[slug2]
+	var sb strings.Builder
+
+	sec := func(title string) string {
+		return s.muted.Render(title)
+	}
+
+	// batters
+	if len(d.Batters) > 0 {
+		sb.WriteString(sec("BATTERS") + "\n")
+		for _, b := range d.Batters {
+			balls := strings.Trim(b.Balls, "()")
+			prefix := "  "
+			if b.OnStrike {
+				prefix = s.gold.Render("* ")
+			}
+			line := fmt.Sprintf("%-22s  %3s (%s)  4s:%-2s 6s:%-2s  SR:%s",
+				b.FullName, b.Runs, balls, b.Fours, b.Sixes, b.StrikeRate)
+			sb.WriteString(prefix + s.score.Render(line) + "\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	// bowler
+	if d.Bowler.FullName != "" {
+		sb.WriteString(sec("BOWLER") + "\n")
+		line := fmt.Sprintf("  %-22s  %s  (%s ov)  Econ: %s",
+			d.Bowler.FullName, d.Bowler.Figures, d.Bowler.Overs, d.Bowler.Economy)
+		sb.WriteString(s.muted.Render(line) + "\n\n")
+	}
+
+	// partnership + rates on one line
+	pLine := fmt.Sprintf("Partnership: %d runs  %d balls", d.Partnership.Runs, d.Partnership.Balls)
+	if d.Rates.CRR != "" {
+		pLine += fmt.Sprintf("    CRR: %s", d.Rates.CRR)
+	}
+	if d.Rates.RRR != "" && d.Rates.RRR != "--" {
+		pLine += fmt.Sprintf("  RRR: %s", d.Rates.RRR)
+	}
+	sb.WriteString(s.faint.Render(pLine) + "\n")
+
+	// last wicket
+	if d.LastWicket.Name != "" {
+		balls := strings.Trim(d.LastWicket.Balls, "()")
+		sb.WriteString(s.faint.Render(fmt.Sprintf("Last wicket: %s  %s(%s)", d.LastWicket.Name, d.LastWicket.Runs, balls)) + "\n")
+	}
+
+	// recent overs (latest last → show last 4, reversed so latest is on top)
+	if len(d.RecentOvers) > 0 {
+		sb.WriteString("\n" + sec("RECENT OVERS") + "\n")
+		overs := d.RecentOvers
+		if len(overs) > 4 {
+			overs = overs[len(overs)-4:]
+		}
+		for i := len(overs) - 1; i >= 0; i-- {
+			o := overs[i]
+			var balls strings.Builder
+			for j, ball := range o.OverInfo {
+				if j > 0 {
+					balls.WriteString("  ")
+				}
+				balls.WriteString(renderBall(s, ball))
+			}
+			sb.WriteString(fmt.Sprintf("  %-8s  %s   %s\n",
+				o.Over, balls.String(), s.faint.Render(fmt.Sprintf("[%d]", o.Total))))
+		}
+	}
+
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+func renderBall(s Styles, ball string) string {
+	switch ball {
+	case "W":
+		return s.liveDot.Render(ball)
+	case "4":
+		return s.gold.Render(ball)
+	case "6":
+		return s.result.Render(ball)
+	case "wd", "nb", "lb", "b":
+		return s.muted.Render(ball)
+	case "0":
+		return s.faint.Render(ball)
+	default:
+		return s.score.Render(ball)
+	}
+}
+
+func (m Model) renderSquads(slug1, slug2, name1, name2 string, width int) string {
+	s := m.styles
+	sq1, ok1 := m.items.squads[cmd.TeamToSlug(slug1)]
+	sq2, ok2 := m.items.squads[cmd.TeamToSlug(slug2)]
 
 	if !ok1 && !ok2 {
 		return s.faint.Render("  loading squads...")
@@ -359,8 +473,8 @@ func (m Model) renderSquads(team1, team2 string, width int) string {
 		colW = 20
 	}
 
-	left := buildSquadColumn(s, team1, sq1, ok1, colW)
-	right := buildSquadColumn(s, team2, sq2, ok2, colW)
+	left := buildSquadColumn(s, name1, sq1, ok1, colW)
+	right := buildSquadColumn(s, name2, sq2, ok2, colW)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Width(colW).Render(left),

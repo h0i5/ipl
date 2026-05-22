@@ -184,13 +184,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case refreshtickMsg:
-		var err error
-		m.items.liveMatch, err = cmd.GetLiveMatchScores()
-		if err != nil {
-			return m, refreshTickCmd()
+		fresh, err := cmd.GetLiveMatchScores()
+		if err == nil && fresh.StatusCode == 200 {
+			m.items.liveMatch = fresh
+			m.lastUpdated = time.Now()
+			return m, tea.Batch(refreshTickCmd(), squadCmdsForLive(m.items.liveMatch))
 		}
-		m.lastUpdated = time.Now()
-		return m, tea.Batch(refreshTickCmd(), squadCmdsForLive(m.items.liveMatch))
+		return m, refreshTickCmd()
 
 	case squadMsg:
 		m.items.squads[msg.slug] = msg.data

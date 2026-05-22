@@ -67,15 +67,74 @@ type YearWinner struct {
 }
 
 type LiveMatch struct {
-	Status    string `json:"status"`
-	Team1     string `json:"team_1"`
-	Score1    string `json:"score_1"`
-	Overs1    string `json:"overs_1"`
-	Team2     string `json:"team_2"`
-	Score2    string `json:"score_2"`
-	Overs2    string `json:"overs_2"`
-	MatchURL  string `json:"match_url"`
-	StartTime string `json:"start_time,omitempty"`
+	Status      string       `json:"status"`
+	Team1       string       `json:"team_1"`
+	Score1      string       `json:"score_1"`
+	Overs1      string       `json:"overs_1"`
+	Team2       string       `json:"team_2"`
+	Score2      string       `json:"score_2"`
+	Overs2      string       `json:"overs_2"`
+	MatchURL    string       `json:"match_url"`
+	StartTime   string       `json:"start_time,omitempty"`
+	LiveDetails *LiveDetails `json:"live_details,omitempty"`
+}
+
+type LiveDetails struct {
+	StatusText   string      `json:"status_text"`
+	Inning       int         `json:"inning"`
+	Toss         string      `json:"toss"`
+	Venue        string      `json:"venue"`
+	MatchNumber  string      `json:"match_number"`
+	StartTimeISO string      `json:"start_time_iso"`
+	Team1Full    string      `json:"team_1_full"`
+	Team2Full    string      `json:"team_2_full"`
+	Batters      []Batter    `json:"batters"`
+	Bowler       Bowler      `json:"bowler"`
+	Rates        LiveRates   `json:"rates"`
+	Partnership  Partnership `json:"partnership"`
+	LastWicket   LastWicket  `json:"last_wicket"`
+	RecentOvers  []RecentOver `json:"recent_overs"`
+}
+
+type Batter struct {
+	Name       string `json:"name"`
+	FullName   string `json:"full_name"`
+	Runs       string `json:"runs"`
+	Balls      string `json:"balls"`
+	Fours      string `json:"fours"`
+	Sixes      string `json:"sixes"`
+	StrikeRate string `json:"strike_rate"`
+	OnStrike   bool   `json:"on_strike"`
+}
+
+type Bowler struct {
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
+	Figures  string `json:"figures"`
+	Overs    string `json:"overs"`
+	Economy  string `json:"economy"`
+}
+
+type LiveRates struct {
+	CRR string `json:"crr"`
+	RRR string `json:"rrr"`
+}
+
+type Partnership struct {
+	Runs  int `json:"runs"`
+	Balls int `json:"balls"`
+}
+
+type LastWicket struct {
+	Name  string `json:"name"`
+	Runs  string `json:"runs"`
+	Balls string `json:"balls"`
+}
+
+type RecentOver struct {
+	Over     string   `json:"over"`
+	OverInfo []string `json:"overinfo"`
+	Total    int      `json:"total"`
 }
 
 type LiveMatchResponse struct {
