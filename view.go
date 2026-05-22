@@ -44,7 +44,7 @@ func (m Model) View() string {
 	if m.currentView == InitialLoadView {
 		content := lipgloss.JoinHorizontal(
 			lipgloss.Center,
-			"Loading IPL 2026 ",
+			"IPL 2026",
 			cursor,
 		)
 
@@ -132,9 +132,9 @@ func (m Model) renderSidebar(width, height int) string {
 	rows = append(rows, "", divider, "")
 	rows = append(rows, s.faint.Render("  ↑↓  navigate"))
 	if m.currentView != TabView {
-		rows = append(rows, s.faint.Render("  ←   back"))
+		rows = append(rows, s.faint.Render("  ←   focus"))
 	} else {
-		rows = append(rows, s.faint.Render("  →   focus"))
+		rows = append(rows, s.faint.Render("  →   move"))
 	}
 	rows = append(rows, s.faint.Render("  q   quit"))
 
