@@ -300,7 +300,11 @@ func (m Model) renderLive(width int) string {
 	for _, k := range keys {
 		match := data.LiveScore[k]
 
-		badge := s.liveDot.Render("● LIVE")
+		dot := "●"
+		if !m.showLiveCursor {
+			dot = " "
+		}
+		badge := s.liveDot.Render(dot + " LIVE")
 		if d := match.LiveDetails; d != nil && d.MatchNumber != "" {
 			badge = lipgloss.JoinHorizontal(lipgloss.Left,
 				badge,

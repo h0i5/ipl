@@ -43,6 +43,9 @@ type Model struct {
 	showLoadingCursor bool
 	lastUpdated       time.Time
 
+	// for the live match view
+	showLiveCursor bool
+
 	// pty dimensions for rendering
 	width  int
 	height int
@@ -75,6 +78,7 @@ func fetchCmd[T any](fetcher func() (T, error)) tea.Cmd {
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		tickCmd(),
+		liveBlinkCmd(),
 		refreshTickCmd(),
 		fetchCmd[cmd.MatchScoresResponse](cmd.GetMatchScores),
 		fetchCmd[cmd.MatchScheduleResponse](cmd.GetMatchSchedule),
@@ -131,6 +135,7 @@ func NewModel(renderer *lipgloss.Renderer) Model {
 		selectedTab:      LiveView,
 		matchTable:       t,
 		matchTableStyles: ts,
+		showLiveCursor:   true,
 		lastUpdated:      time.Now(),
 		items:            Items{squads: make(map[string]cmd.SquadResponse)},
 	}

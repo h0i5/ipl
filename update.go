@@ -124,6 +124,15 @@ func refreshTickCmd() tea.Cmd {
 	})
 }
 
+type liveBlinkMsg time.Time
+
+func liveBlinkCmd() tea.Cmd {
+	// refresh every 1 seconds
+	return tea.Tick(1*time.Second, func(t time.Time) tea.Msg {
+		return liveBlinkMsg(t)
+	})
+}
+
 type tickMsg time.Time
 
 func tickCmd() tea.Cmd {
@@ -181,6 +190,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tickCmd()
 		}
 		return m, nil
+
+	case liveBlinkMsg:
+		m.showLiveCursor = !m.showLiveCursor
+		m.matchTable = m.buildMatchTable(m.matchTable, m.items.matchScores)
+		return m, liveBlinkCmd()
 
 	case refreshtickMsg:
 		fresh, err := cmd.GetLiveMatchScores()

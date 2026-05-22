@@ -50,7 +50,11 @@ func (model Model) buildMatchTable(t table.Model, data cmd.MatchScoresResponse) 
 		var status string
 		switch m.Status {
 		case "Live":
-			status = "● Live"
+			if model.showLiveCursor {
+				status = "● Live"
+			} else {
+				status = "  Live"
+			}
 		case "Upcoming":
 			status = "○ Soon"
 		default:
