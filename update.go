@@ -19,6 +19,8 @@ func (m Model) handleTabNavigation(key string) (tea.Model, tea.Cmd) {
 		m.selectedTab = AboutView
 	case "l":
 		m.selectedTab = LiveView
+	case "h":
+		m.selectedTab = HistoricalView
 	}
 	m.currentView = m.selectedTab
 	if m.currentView == MatchView {
@@ -79,7 +81,8 @@ func (m Model) allLoaded() bool {
 	return !m.loadingMap[MatchView] &&
 		!m.loadingMap[ScheduleView] &&
 		!m.loadingMap[PointsTableView] &&
-		!m.loadingMap[LiveView]
+		!m.loadingMap[LiveView] &&
+		!m.loadingMap[HistoricalView]
 }
 
 type squadMsg struct {
@@ -184,6 +187,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.matchTable.Focus()
 		}
 
+	case cmd.HistoricalWinnersResponse:
+		m.loadingMap[HistoricalView] = false
+		m.items.historicalWinners = msg
+		if m.allLoaded() {
+			m.currentView = LiveView
+			m.selectedTab = LiveView
+			m.matchTable.Focus()
+		}
+
 	case tickMsg:
 		m.showLoadingCursor = !m.showLoadingCursor
 		if !m.allLoaded() {
@@ -217,7 +229,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// letter shortcuts work from anywhere
 		switch key {
-		case "m", "p", "s", "a", "l":
+		case "m", "p", "s", "a", "l", "h":
 			return m.handleTabNavigation(key)
 		}
 
@@ -231,6 +243,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var command tea.Cmd
 				m.matchTable, command = m.matchTable.Update(msg)
 				return m, command
+			}
+		case HistoricalView:
+			if key == "left" {
+				return m.handleNavToTabView()
 			}
 		case PointsTableView, ScheduleView, AboutView, LiveView:
 			if key == "left" {

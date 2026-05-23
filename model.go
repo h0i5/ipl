@@ -19,7 +19,7 @@ const (
 	PointsTableView
 	// SquadView
 	ScheduleView
-	// HistoricalView
+	HistoricalView
 	AboutView
 
 	// LastView is always last, never rendered just for limits
@@ -84,6 +84,7 @@ func (m Model) Init() tea.Cmd {
 		fetchCmd[cmd.MatchScheduleResponse](cmd.GetMatchSchedule),
 		fetchCmd[cmd.PointsTableResponse](cmd.GetPointsTable),
 		fetchCmd[cmd.LiveMatchResponse](cmd.GetLiveMatchScores),
+		fetchCmd[cmd.HistoricalWinnersResponse](cmd.GetHistoricalWinners),
 	)
 }
 
@@ -111,7 +112,8 @@ func NewModel(renderer *lipgloss.Renderer) Model {
 			BorderForeground(colorRule).
 			BorderBottom(true).
 			Foreground(colorGold).
-			Bold(true),
+			Bold(true).
+			Padding(0, 1),
 		Selected: renderer.NewStyle().
 			Foreground(colorInk).
 			Background(colorSienna).
@@ -125,6 +127,7 @@ func NewModel(renderer *lipgloss.Renderer) Model {
 		ScheduleView:    true,
 		PointsTableView: true,
 		LiveView:        true,
+		HistoricalView:  true,
 	}
 
 	return Model{

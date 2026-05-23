@@ -11,13 +11,14 @@ import (
 	"github.com/h0i5/ipl/cmd"
 )
 
-var tabOrder = []int{LiveView, MatchView, PointsTableView, ScheduleView, AboutView}
+var tabOrder = []int{LiveView, MatchView, PointsTableView, ScheduleView, HistoricalView, AboutView}
 
 var tabLabels = map[int]struct{ key, label string }{
 	LiveView:        {"l", "live"},
 	MatchView:       {"m", "matches"},
 	PointsTableView: {"p", "points"},
 	ScheduleView:    {"s", "schedule"},
+	HistoricalView:  {"h", "historical"},
 	AboutView:       {"a", "about"},
 }
 
@@ -172,6 +173,9 @@ func (m Model) renderBody(width, height int) string {
 
 	case ScheduleView:
 		content = m.renderSchedule(innerW)
+
+	case HistoricalView:
+		content = m.renderHistorical(innerW)
 
 	case AboutView:
 		content = m.renderAbout(innerW)
@@ -709,33 +713,114 @@ func (m Model) renderSchedule(width int) string {
 	}
 	sort.Strings(keys)
 
-	cardW := 72 // fixed card width, ~2 lines of content
+	header := fmt.Sprintf("%-8s  %-32s %-18s %-8s %s", "#", "Teams", "Date", "Time", "Venue")
+	sb.WriteString(s.tableHeader.Render(header))
+	sb.WriteString("\n")
+	sb.WriteString(s.faint.Render(strings.Repeat("─", width)))
+	sb.WriteString("\n")
 
-	for _, k := range keys {
+	for i, k := range keys {
 		match := data.Schedule[k]
-
-		rivals := s.gold.Bold(true).Render(match.Rival)
-		datetime := s.muted.Render(fmt.Sprintf("%s · %s", match.Date, match.Time))
-
-		// trim long stadium names
-		loc := match.Location
-		location := s.venue.Render(loc)
-
-		// rivals + datetime on one line, location below
-		line1 := lipgloss.JoinHorizontal(lipgloss.Top,
-			rivals,
-			s.muted.Render("  ·  "),
-			datetime,
+		row := fmt.Sprintf("%-8s  %-32s %-18s %-8s %s",
+			k,
+			truncate(match.Rival, 31),
+			truncate(match.Date, 17),
+			match.Time,
+			truncateVenue(match.Location, 35),
 		)
-
-		card := s.matchCard.Width(cardW).Render(
-			strings.Join([]string{line1, location}, "\n"),
-		)
-		sb.WriteString(card)
+		if i%2 == 0 {
+			sb.WriteString(s.tableRow.Render(row))
+		} else {
+			sb.WriteString(s.tableRowAlt.Render(row))
+		}
 		sb.WriteString("\n")
 	}
 
 	return sb.String()
+}
+
+// ── Historical ────────────────────────────────────────────────────────────────
+
+func (m Model) renderHistorical(width int) string {
+	s := m.styles
+
+	if m.loadingMap[HistoricalView] {
+		return s.loading.Render("fetching winners...")
+	}
+
+	heading := s.header
+	if m.currentView == TabView {
+		heading = s.muted
+	}
+
+	data := m.items.historicalWinners
+	years := make([]string, 0, len(data.Winners))
+	for y := range data.Winners {
+		years = append(years, y)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(years)))
+
+	var sb strings.Builder
+	sb.WriteString(heading.Render("ipl winners"))
+	sb.WriteString("\n\n")
+
+	header := fmt.Sprintf("%-6s  %-34s %-20s %-14s %s", "Year", "Winner", "Runner Up", "Venue", "Result")
+	sb.WriteString(s.tableHeader.Render(header))
+	sb.WriteString("\n")
+	sb.WriteString(s.faint.Render(strings.Repeat("─", width)))
+	sb.WriteString("\n")
+
+	for i, yr := range years {
+		w := data.Winners[yr]
+		row := fmt.Sprintf("%-6s  %-34s %-20s %-14s %s",
+			yr,
+			truncate(w.Winner, 33),
+			truncate(w.RunnerUp, 19),
+			truncate(w.Venue, 13),
+			w.WonBy,
+		)
+		if i%2 == 0 {
+			sb.WriteString(s.tableRow.Render(row))
+		} else {
+			sb.WriteString(s.tableRowAlt.Render(row))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("\n")
+	if m.currentView == HistoricalView {
+		sb.WriteString(s.faint.Render("← back"))
+	}
+
+	return sb.String()
+}
+
+func truncate(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max-1]) + "…"
+}
+
+func truncateVenue(s string, max int) string {
+	if len([]rune(s)) <= max {
+		return s
+	}
+	words := strings.Fields(s)
+	if len(words) <= 1 {
+		return truncate(s, max)
+	}
+	last := words[len(words)-1]
+	prefix := words[:len(words)-1]
+	for len(prefix) > 0 {
+		candidate := strings.Join(prefix, " ") + "… " + last
+		if len([]rune(candidate)) <= max {
+			return candidate
+		}
+		prefix = prefix[:len(prefix)-1]
+	}
+	return "… " + last
 }
 
 // ── About ─────────────────────────────────────────────────────────────────────

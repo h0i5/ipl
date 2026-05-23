@@ -40,6 +40,10 @@ func GetLiveMatchScores() (LiveMatchResponse, error) {
 	return GetApiData[LiveMatchResponse]("/ipl-2026-live-score-s2")
 }
 
+func GetHistoricalWinners() (HistoricalWinnersResponse, error) {
+	return GetApiData[HistoricalWinnersResponse]("ipl-winners")
+}
+
 var teamSlugs = map[string]string{
 	"mi": "mi", "mumbai indians": "mi", "mumbai": "mi",
 	"csk": "csk", "chennai super kings": "csk", "chennai": "csk",
